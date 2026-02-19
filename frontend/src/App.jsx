@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { BarChart as RBarChart, Bar, LineChart as RLineChart, Line, PieChart as RPieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 // ─── CONFIG ─────────────────────────────────────────────────────────────────
 const API = "http://localhost:8000";
@@ -92,6 +93,84 @@ const LANG_NAMES = {
 const langName = (code) => LANG_NAMES[code] || (LANG_NAMES[code?.toLowerCase()] || code?.toUpperCase() || "Unknown");
 const stars = (avg) => Math.round(avg / 2);
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+
+const RATING_LABELS = {
+  "0-2": "Poor", "2-4": "Below Average", "4-6": "Average",
+  "6-8": "Good", "8-10": "Excellent"
+};
+const CHART_COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#06b6d4", "#f97316", "#ef4444", "#84cc16", "#a855f7", "#14b8a6", "#e879f9"];
+
+// ─── CHART TYPE SELECTOR ────────────────────────────────────────────────────
+function ChartTypeSelector({ value, onChange }) {
+  const types = ["bar", "line", "pie"];
+  const icons = { bar: "📊", line: "📈", pie: "🥧" };
+  return (
+    <div className="chart-type-toggle">
+      {types.map(t => (
+        <button key={t} className={`ctt-btn ${value === t ? "active" : ""}`} onClick={() => onChange(t)}>
+          {icons[t]} {t.charAt(0).toUpperCase() + t.slice(1)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── UNIVERSAL RECHARTS RENDERER ────────────────────────────────────────────
+function UniversalChart({ data, xKey, yKey, color = "#6366f1", chartType = "bar", onBarClick, formatter, height = 220 }) {
+  const displayData = formatter ? data.map(d => ({ ...d, _label: formatter(d[xKey]) })) : data;
+  const labelKey = formatter ? "_label" : xKey;
+
+  const customTooltip = ({ active, payload }) => {
+    if (!active || !payload?.[0]) return null;
+    const d = payload[0].payload;
+    return (
+      <div className="rc-tooltip">
+        <span className="rc-tooltip-label">{formatter ? formatter(d[xKey]) : d[xKey]}</span>
+        <span className="rc-tooltip-value">{d[yKey]?.toLocaleString()}</span>
+      </div>
+    );
+  };
+
+  if (chartType === "pie") {
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <RPieChart>
+          <Pie data={displayData} dataKey={yKey} nameKey={labelKey} cx="50%" cy="50%" outerRadius={80} innerRadius={35}
+            onClick={(_, idx) => onBarClick && onBarClick(data[idx])} style={{ cursor: onBarClick ? "pointer" : "default" }}>
+            {displayData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+          </Pie>
+          <Tooltip content={customTooltip} />
+        </RPieChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  if (chartType === "line") {
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <RLineChart data={displayData} onClick={(e) => e?.activePayload && onBarClick && onBarClick(e.activePayload[0].payload)}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+          <XAxis dataKey={labelKey} tick={{ fill: "#8892a4", fontSize: 11 }} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
+          <YAxis tick={{ fill: "#8892a4", fontSize: 11 }} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
+          <Tooltip content={customTooltip} />
+          <Line type="monotone" dataKey={yKey} stroke={color} strokeWidth={2} dot={{ fill: color, r: 3 }} activeDot={{ r: 5, fill: color }} />
+        </RLineChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <RBarChart data={displayData} onClick={(e) => e?.activePayload && onBarClick && onBarClick(e.activePayload[0].payload)}>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+        <XAxis dataKey={labelKey} tick={{ fill: "#8892a4", fontSize: 11 }} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
+        <YAxis tick={{ fill: "#8892a4", fontSize: 11 }} axisLine={{ stroke: "rgba(255,255,255,0.1)" }} />
+        <Tooltip content={customTooltip} cursor={{ fill: "rgba(99,102,241,0.08)" }} />
+        <Bar dataKey={yKey} fill={color} radius={[4, 4, 0, 0]} style={{ cursor: onBarClick ? "pointer" : "default" }} />
+      </RBarChart>
+    </ResponsiveContainer>
+  );
+}
 
 // ─── MINI BAR CHART ─────────────────────────────────────────────────────────
 function BarChart({ data, xKey, yKey, color = "#6366f1", label }) {
@@ -259,50 +338,156 @@ function MovieCard({ movie, index }) {
 }
 
 
+// ─── RANGE FILTER PRESETS ────────────────────────────────────────────────────
+const YEAR_RANGES = [
+  { label: "All", min: 0, max: 9999 },
+  { label: "1990–1999", min: 1990, max: 1999 },
+  { label: "2000–2005", min: 2000, max: 2005 },
+  { label: "2006–2010", min: 2006, max: 2010 },
+  { label: "2011–2015", min: 2011, max: 2015 },
+  { label: "2016–2020", min: 2016, max: 2020 },
+  { label: "2021+", min: 2021, max: 9999 },
+];
+
+const RATING_RANGES = [
+  { label: "All", ranges: null },
+  { label: "Low (0–4)", ranges: ["0-2", "2-4"] },
+  { label: "Mid (4–7)", ranges: ["4-5", "5-6", "6-7"] },
+  { label: "High (7–10)", ranges: ["7-8", "8-9", "9-10"] },
+];
+
+const GENRE_GROUPS = [
+  { label: "All", genres: null },
+  { label: "Action/Adventure", genres: ["Action", "Adventure", "Sci-Fi", "War"] },
+  { label: "Drama/Romance", genres: ["Drama", "Romance", "History"] },
+  { label: "Comedy/Family", genres: ["Comedy", "Family", "Animation"] },
+  { label: "Thriller/Horror", genres: ["Thriller", "Horror", "Crime", "Mystery"] },
+];
+
+const LANG_GROUPS = [
+  { label: "All", langs: null },
+  { label: "Asian", langs: ["ja", "ko", "zh", "hi", "cn", "th", "ta", "te", "ml"] },
+  { label: "European", langs: ["en", "fr", "de", "es", "it", "pt", "nl", "sv", "da", "ru", "pl", "no"] },
+  { label: "English", langs: ["en"] },
+  { label: "Korean", langs: ["ko"] },
+  { label: "Japanese", langs: ["ja"] },
+  { label: "French", langs: ["fr"] },
+  { label: "Spanish", langs: ["es"] },
+];
+
+function RangeButtons({ options, active, onChange }) {
+  return (
+    <div className="range-btns">
+      {options.map((o, i) => (
+        <button key={i} className={`rbtn ${active === i ? "active" : ""}`} onClick={() => onChange(i)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── ANALYTICS TAB ──────────────────────────────────────────────────────────
-function AnalyticsView({ data }) {
+function AnalyticsView({ data, onFilter, activeFilter }) {
+  const [yearChart, setYearChart] = useState("bar");
+  const [ratingChart, setRatingChart] = useState("bar");
+  const [genreChart, setGenreChart] = useState("bar");
+  const [langChart, setLangChart] = useState("bar");
+  const [yearRange, setYearRange] = useState(0);
+  const [ratingRange, setRatingRange] = useState(0);
+  const [genreGroup, setGenreGroup] = useState(0);
+  const [langGroup, setLangGroup] = useState(0);
+
   if (!data) return <div className="loading"><div className="spinner" /></div>;
   const { stats, genre_distribution, rating_distribution, movies_per_year, language_distribution, top_popular, top_rated } = data;
 
+  // Apply range filters to data
+  const yr = YEAR_RANGES[yearRange];
+  const filteredYears = movies_per_year.filter(d => d.year >= yr.min && d.year <= yr.max);
+
+  const rr = RATING_RANGES[ratingRange];
+  const filteredRatings = rr.ranges ? rating_distribution.filter(d => rr.ranges.includes(d.range)) : rating_distribution;
+
+  const gg = GENRE_GROUPS[genreGroup];
+  const filteredGenres = gg.genres ? genre_distribution.filter(d => gg.genres.includes(d.genre)) : genre_distribution.slice(0, 10);
+
+  const lg = LANG_GROUPS[langGroup];
+  const filteredLangs = lg.langs ? language_distribution.filter(d => lg.langs.includes(d.language)) : language_distribution.slice(0, 12);
+
+  const handleYearClick = (d) => onFilter && onFilter({ type: "year", value: d.year, label: `Year: ${d.year}` });
+  const handleRatingClick = (d) => {
+    const range = d.range;
+    const [min, max] = range.split("-").map(Number);
+    onFilter && onFilter({ type: "rating", value: { min, max }, label: `Rating: ${range} (${RATING_LABELS[range] || range})` });
+  };
+  const handleGenreClick = (d) => onFilter && onFilter({ type: "genre", value: d.genre, label: `Genre: ${d.genre}` });
+  const handleLangClick = (d) => onFilter && onFilter({ type: "language", value: d.language, label: `Language: ${langName(d.language)}` });
+
   return (
-    <motion.div
-      className="analytics-view"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
-    >
-      {/* Stats */}
+    <motion.div className="analytics-view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}>
+      {activeFilter && (
+        <motion.div className="active-filter-banner" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <span>Filtered: <strong>{activeFilter.label}</strong></span>
+          <button className="afb-clear" onClick={() => onFilter(null)}>✕ Clear</button>
+        </motion.div>
+      )}
+
       <div className="stats-grid">
         <StatCard label="Total Movies" value={stats.total_movies.toLocaleString()} icon={<FilmIcon />} delay={0} />
-        <StatCard label="Avg Rating" value={stats.avg_rating} icon={<StarIcon filled />} delay={0.08} sub={`out of 10`} />
+        <StatCard label="Avg Rating" value={stats.avg_rating} icon={<StarIcon filled />} delay={0.08} sub="out of 10" />
         <StatCard label="Languages" value={stats.total_languages} icon={<GlobeIcon />} delay={0.16} />
         <StatCard label="Genres" value={stats.total_genres} icon={<ChartIcon />} delay={0.24} />
         <StatCard label="Year Range" value={`${stats.year_range[0]}–${stats.year_range[1]}`} icon={<TrendIcon />} delay={0.32} />
         <StatCard label="Avg Popularity" value={stats.avg_popularity.toLocaleString()} icon={<TrendIcon />} delay={0.4} />
       </div>
 
-      <div className="charts-grid">
+      <div className="charts-grid full-width">
         <motion.div className="chart-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-          <h3>Movies per Year</h3>
-          <BarChart data={movies_per_year.slice(-30)} xKey="year" yKey="count" color="#6366f1" />
+          <div className="chart-card-header">
+            <h3>📅 Movies per Year</h3>
+            <ChartTypeSelector value={yearChart} onChange={setYearChart} />
+          </div>
+          <RangeButtons options={YEAR_RANGES} active={yearRange} onChange={setYearRange} />
+          <p className="chart-hint">Click a year to filter movies • Showing {filteredYears.length} years</p>
+          <UniversalChart data={filteredYears} xKey="year" yKey="count" color="#6366f1" chartType={yearChart} onBarClick={handleYearClick} height={300} />
         </motion.div>
 
         <motion.div className="chart-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
-          <h3>Rating Distribution</h3>
-          <BarChart data={rating_distribution} xKey="range" yKey="count" color="#10b981" />
+          <div className="chart-card-header">
+            <h3>⭐ Rating Distribution</h3>
+            <ChartTypeSelector value={ratingChart} onChange={setRatingChart} />
+          </div>
+          <RangeButtons options={RATING_RANGES} active={ratingRange} onChange={setRatingRange} />
+          <p className="chart-hint">Click a range to filter movies by rating</p>
+          <div className="rating-legend">
+            {Object.entries(RATING_LABELS).map(([range, desc]) => (
+              <span key={range} className="rating-legend-item"><strong>{range}:</strong> {desc}</span>
+            ))}
+          </div>
+          <UniversalChart data={filteredRatings} xKey="range" yKey="count" color="#10b981" chartType={ratingChart} onBarClick={handleRatingClick} height={300} />
         </motion.div>
 
         <motion.div className="chart-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-          <h3>Top Genres</h3>
-          <HBar data={genre_distribution.slice(0, 10)} xKey="genre" yKey="count" color="#f59e0b" />
+          <div className="chart-card-header">
+            <h3>🎭 Top Genres</h3>
+            <ChartTypeSelector value={genreChart} onChange={setGenreChart} />
+          </div>
+          <RangeButtons options={GENRE_GROUPS} active={genreGroup} onChange={setGenreGroup} />
+          <p className="chart-hint">Click a genre to filter movies • Showing {filteredGenres.length} genres</p>
+          <UniversalChart data={filteredGenres} xKey="genre" yKey="count" color="#f59e0b" chartType={genreChart} onBarClick={handleGenreClick} height={300} />
         </motion.div>
 
         <motion.div className="chart-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
-          <h3>Languages</h3>
-          <HBar data={language_distribution} xKey="language" yKey="count" color="#ec4899" formatter={langName} />
+          <div className="chart-card-header">
+            <h3>🌍 Languages</h3>
+            <ChartTypeSelector value={langChart} onChange={setLangChart} />
+          </div>
+          <RangeButtons options={LANG_GROUPS} active={langGroup} onChange={setLangGroup} />
+          <p className="chart-hint">Click a language to filter movies • Showing {filteredLangs.length} languages</p>
+          <UniversalChart data={filteredLangs} xKey="language" yKey="count" color="#ec4899" chartType={langChart} onBarClick={handleLangClick} formatter={langName} height={300} />
         </motion.div>
 
-        <motion.div className="chart-card wide" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+        <motion.div className="chart-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
           <h3>🔥 Most Popular</h3>
           <div className="top-list">
             {top_popular.map((m, i) => (
@@ -316,7 +501,7 @@ function AnalyticsView({ data }) {
           </div>
         </motion.div>
 
-        <motion.div className="chart-card wide" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+        <motion.div className="chart-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
           <h3>⭐ Top Rated</h3>
           <div className="top-list">
             {top_rated.map((m, i) => (
@@ -335,7 +520,7 @@ function AnalyticsView({ data }) {
 }
 
 // ─── MOVIES TAB ──────────────────────────────────────────────────────────────
-function MoviesView({ filterOptions }) {
+function MoviesView({ filterOptions, externalFilter }) {
   const [movies, setMovies] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -345,6 +530,26 @@ function MoviesView({ filterOptions }) {
   const [sort, setSort] = useState({ by: "popularity", order: "desc" });
   const [showFilters, setShowFilters] = useState(false);
   const debounceRef = useRef(null);
+
+  // Apply external filter from Analytics
+  useEffect(() => {
+    if (!externalFilter) return;
+    const f = { genre: "", language: "", year_min: "", year_max: "", rating_min: "", rating_max: "" };
+    if (externalFilter.type === "year") {
+      f.year_min = String(externalFilter.value);
+      f.year_max = String(externalFilter.value);
+    } else if (externalFilter.type === "rating") {
+      f.rating_min = String(externalFilter.value.min);
+      f.rating_max = String(externalFilter.value.max);
+    } else if (externalFilter.type === "genre") {
+      f.genre = externalFilter.value;
+    } else if (externalFilter.type === "language") {
+      f.language = externalFilter.value;
+    }
+    setFilters(f);
+    setShowFilters(true);
+    setPage(1);
+  }, [externalFilter]);
 
   const fetchMovies = useCallback(async (params = {}) => {
     setLoading(true);
@@ -392,15 +597,8 @@ function MoviesView({ filterOptions }) {
       <div className="search-bar">
         <div className="search-input-wrap">
           <SearchIcon />
-          <input
-            className="search-input"
-            placeholder="Search movies, titles, overviews..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          {search && (
-            <button className="search-clear" onClick={() => setSearch("")}><XIcon /></button>
-          )}
+          <input className="search-input" placeholder="Search movies, titles, overviews..." value={search} onChange={e => setSearch(e.target.value)} />
+          {search && (<button className="search-clear" onClick={() => setSearch("")}><XIcon /></button>)}
         </div>
         <button className={`filter-btn ${showFilters ? "active" : ""}`} onClick={() => setShowFilters(v => !v)}>
           <FilterIcon />
@@ -421,13 +619,7 @@ function MoviesView({ filterOptions }) {
       {/* Filter Panel */}
       <AnimatePresence>
         {showFilters && (
-          <motion.div
-            className="filter-panel"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-          >
+          <motion.div className="filter-panel" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3, ease: "easeInOut" }}>
             <div className="filter-grid">
               <div className="filter-group">
                 <label>Genre</label>
@@ -469,13 +661,11 @@ function MoviesView({ filterOptions }) {
         )}
       </AnimatePresence>
 
-      {/* Results info */}
       <div className="results-info">
         <span>{total.toLocaleString()} movies found</span>
         {loading && <span className="loading-text">Loading...</span>}
       </div>
 
-      {/* Grid */}
       <AnimatePresence mode="wait">
         {loading && movies.length === 0 ? (
           <motion.div key="loading" className="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -490,7 +680,6 @@ function MoviesView({ filterOptions }) {
         )}
       </AnimatePresence>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <motion.div className="pagination" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
           <button disabled={page === 1} onClick={() => setPage(1)}>«</button>
@@ -515,6 +704,7 @@ export default function App() {
   const [analytics, setAnalytics] = useState(null);
   const [filterOptions, setFilterOptions] = useState(null);
   const [apiStatus, setApiStatus] = useState("checking");
+  const [analyticsFilter, setAnalyticsFilter] = useState(null);
 
   useEffect(() => {
     fetch(`${API}/filters/options`)
@@ -528,22 +718,24 @@ export default function App() {
       .catch(() => { });
   }, []);
 
+  const handleAnalyticsFilter = (filter) => {
+    if (filter) {
+      setAnalyticsFilter(filter);
+      setTab("movies");
+    } else {
+      setAnalyticsFilter(null);
+    }
+  };
+
   return (
     <>
       <style>{CSS}</style>
       <div className="app">
-        {/* Background orbs */}
         <div className="bg-orb orb1" />
         <div className="bg-orb orb2" />
         <div className="bg-orb orb3" />
 
-        {/* Header */}
-        <motion.header
-          className="header"
-          initial={{ y: -60, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        >
+        <motion.header className="header" initial={{ y: -60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
           <div className="header-inner">
             <div className="logo">
               <span className="logo-icon">🎬</span>
@@ -558,13 +750,7 @@ export default function App() {
                 { id: "movies", label: "Browse", icon: <FilmIcon /> },
                 { id: "analytics", label: "Analytics", icon: <ChartIcon /> },
               ].map(t => (
-                <motion.button
-                  key={t.id}
-                  className={`nav-btn ${tab === t.id ? "active" : ""}`}
-                  onClick={() => setTab(t.id)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                >
+                <motion.button key={t.id} className={`nav-btn ${tab === t.id ? "active" : ""}`} onClick={() => setTab(t.id)} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
                   {t.icon}
                   {t.label}
                   {tab === t.id && (
@@ -581,16 +767,15 @@ export default function App() {
           </div>
         </motion.header>
 
-        {/* Main Content */}
         <main className="main">
           <AnimatePresence mode="wait">
             {tab === "movies" ? (
               <motion.div key="movies" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.3 }}>
-                <MoviesView filterOptions={filterOptions} />
+                <MoviesView filterOptions={filterOptions} externalFilter={analyticsFilter} />
               </motion.div>
             ) : (
               <motion.div key="analytics" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
-                <AnalyticsView data={analytics} />
+                <AnalyticsView data={analytics} onFilter={handleAnalyticsFilter} activeFilter={analyticsFilter} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -730,9 +915,16 @@ const CSS = `
   .stat-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
 
   .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px; }
+  .charts-grid.full-width { grid-template-columns: 1fr; }
   .chart-card { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; }
   .chart-card.wide { grid-column: 1 / -1; }
   .chart-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
+
+  /* RANGE FILTER BUTTONS */
+  .range-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .rbtn { padding: 5px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text3); font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .rbtn:hover { color: var(--text); border-color: var(--border2); background: var(--surface2); }
+  .rbtn.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: var(--accent); color: white; }
 
   /* BAR CHART */
   .chart-label { font-size: 12px; color: var(--text3); margin-bottom: 10px; }
@@ -765,6 +957,35 @@ const CSS = `
   .loading { display: flex; align-items: center; justify-content: center; min-height: 300px; }
   .spinner { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--border); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* CHART TYPE TOGGLE */
+  .chart-type-toggle { display: flex; gap: 4px; }
+  .ctt-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text3); font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .ctt-btn:hover { color: var(--text2); border-color: var(--border2); }
+  .ctt-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+  /* CHART CARD HEADER */
+  .chart-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .chart-card-header h3 { margin-bottom: 0; }
+  .chart-hint { font-size: 11px; color: var(--text3); margin-bottom: 12px; font-style: italic; }
+
+  /* RATING LEGEND */
+  .rating-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .rating-legend-item { font-size: 11px; color: var(--text2); padding: 2px 8px; background: var(--surface); border-radius: 6px; border: 1px solid var(--border); }
+  .rating-legend-item strong { color: var(--green); margin-right: 2px; }
+
+  /* ACTIVE FILTER BANNER */
+  .active-filter-banner { display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08)); border: 1px solid rgba(99,102,241,0.3); border-radius: 10px; padding: 10px 16px; margin-bottom: 20px; font-size: 13px; color: var(--text); }
+  .afb-clear { background: none; border: 1px solid rgba(239,68,68,0.4); border-radius: 6px; color: #ef4444; padding: 3px 10px; font-family: 'Outfit', sans-serif; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+  .afb-clear:hover { background: rgba(239,68,68,0.1); }
+
+  /* RECHARTS TOOLTIP */
+  .rc-tooltip { background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; }
+  .rc-tooltip-label { font-size: 11px; color: var(--text2); font-weight: 500; }
+  .rc-tooltip-value { font-size: 14px; font-weight: 700; color: var(--text); }
+
+  /* Recharts overrides */
+  .recharts-cartesian-grid-horizontal line, .recharts-cartesian-grid-vertical line { stroke: rgba(255,255,255,0.04); }
 
   @media (max-width: 768px) {
     .header-inner { gap: 16px; }

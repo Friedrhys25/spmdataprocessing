@@ -134,8 +134,8 @@ def get_movies(
             "release_year": int(row["release_year"]) if not pd.isna(row.get("release_year")) else None,
             "original_language": row["original_language"],
             "genre_names": row["genre_names"],
-            "poster_path": row["poster_path"] if not pd.isna(row.get("poster_path", "")) else "",
-            "backdrop_path": row["backdrop_path"] if not pd.isna(row.get("backdrop_path", "")) else "",
+            "poster_url": f"https://image.tmdb.org/t/p/w500{row['poster_path']}" if not pd.isna(row.get("poster_path", "")) and row.get("poster_path", "") else "",
+            "backdrop_url": f"https://image.tmdb.org/t/p/w780{row['backdrop_path']}" if not pd.isna(row.get("backdrop_path", "")) and row.get("backdrop_path", "") else "",
         })
 
     return {"total": total, "page": page, "per_page": per_page, "movies": movies}
