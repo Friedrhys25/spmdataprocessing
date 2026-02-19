@@ -32,7 +32,7 @@ def load_data():
     global df_global
 
     # ✅ always locate CSV relative to project root (one level above /backend)
-    BASE_DIR = Path(__file__).resolve().parent.parent
+    BASE_DIR = Path(__file__).resolve().parent
     csv_path = BASE_DIR / "movies_dataset.csv"
 
     if not csv_path.exists():

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence} from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 // ─── CONFIG ─────────────────────────────────────────────────────────────────
 const API = "http://localhost:8000";
@@ -21,8 +21,75 @@ const CloseIcon = () => <Icon d="M18 6L6 18M6 6l12 12" />;
 const XIcon = () => <Icon d="M18 6L6 18M6 6l12 12" size={14} />;
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
-const LANG_NAMES = { en: "English", fr: "French", es: "Spanish", ja: "Japanese", ko: "Korean", de: "German", it: "Italian", pt: "Portuguese", zh: "Chinese", hi: "Hindi", ru: "Russian", ar: "Arabic", nl: "Dutch", sv: "Swedish", da: "Danish", fi: "Finnish", pl: "Polish", tr: "Turkish", "null": "Unknown" };
-const langName = (code) => LANG_NAMES[code] || code?.toUpperCase() || "Unknown";
+const LANG_NAMES = {
+  "en": "English",
+  "fr": "French",
+  "es": "Spanish",
+  "ja": "Japanese",
+  "ko": "Korean",
+  "de": "German",
+  "it": "Italian",
+  "pt": "Portuguese",
+  "zh": "Chinese",
+  "hi": "Hindi",
+  "ru": "Russian",
+  "ar": "Arabic",
+  "nl": "Dutch",
+  "sv": "Swedish",
+  "da": "Danish",
+  "fi": "Finnish",
+  "pl": "Polish",
+  "tr": "Turkish",
+  "th": "Thai",
+  "id": "Indonesian",
+  "cs": "Czech",
+  "el": "Greek",
+  "hu": "Hungarian",
+  "no": "Norwegian",
+  "ro": "Romanian",
+  "vi": "Vietnamese",
+  "he": "Hebrew",
+  "uk": "Ukrainian",
+  "ta": "Tamil",
+  "te": "Telugu",
+  "ml": "Malayalam",
+  "kn": "Kannada",
+  "mr": "Marathi",
+  "bn": "Bengali",
+  "fa": "Persian",
+  "ur": "Urdu",
+  "tl": "Tagalog",
+  "ms": "Malay",
+  "bg": "Bulgarian",
+  "hr": "Croatian",
+  "sr": "Serbian",
+  "sk": "Slovak",
+  "sl": "Slovenian",
+  "et": "Estonian",
+  "lv": "Latvian",
+  "lt": "Lithuanian",
+  "is": "Icelandic",
+  "ga": "Irish",
+  "cy": "Welsh",
+  "sq": "Albanian",
+  "mk": "Macedonian",
+  "bs": "Bosnian",
+  "kk": "Kazakh",
+  "uz": "Uzbek",
+  "hy": "Armenian",
+  "ka": "Georgian",
+  "az": "Azerbaijani",
+  "eu": "Basque",
+  "gl": "Galician",
+  "ca": "Catalan",
+  "af": "Afrikaans",
+  "sw": "Swahili",
+  "ht": "Haitian Creole",
+  "yi": "Yiddish",
+  "la": "Latin",
+  "null": "Unknown"
+};
+const langName = (code) => LANG_NAMES[code] || (LANG_NAMES[code?.toLowerCase()] || code?.toUpperCase() || "Unknown");
 const stars = (avg) => Math.round(avg / 2);
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
@@ -53,7 +120,7 @@ function BarChart({ data, xKey, yKey, color = "#6366f1", label }) {
 }
 
 // ─── HORIZONTAL BAR ─────────────────────────────────────────────────────────
-function HBar({ data, xKey, yKey, color = "#8b5cf6" }) {
+function HBar({ data, xKey, yKey, color = "#8b5cf6", formatter }) {
   const max = Math.max(...data.map(d => d[yKey]));
   return (
     <div className="hbar-chart">
@@ -65,7 +132,7 @@ function HBar({ data, xKey, yKey, color = "#8b5cf6" }) {
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: i * 0.05, duration: 0.4 }}
         >
-          <span className="hbar-label">{d[xKey]}</span>
+          <span className="hbar-label">{formatter ? formatter(d[xKey]) : d[xKey]}</span>
           <div className="hbar-track">
             <motion.div
               className="hbar-fill"
@@ -232,7 +299,7 @@ function AnalyticsView({ data }) {
 
         <motion.div className="chart-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
           <h3>Languages</h3>
-          <HBar data={language_distribution} xKey="language" yKey="count" color="#ec4899" />
+          <HBar data={language_distribution} xKey="language" yKey="count" color="#ec4899" formatter={langName} />
         </motion.div>
 
         <motion.div className="chart-card wide" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
@@ -458,7 +525,7 @@ export default function App() {
     fetch(`${API}/analytics`)
       .then(r => r.json())
       .then(setAnalytics)
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   return (
