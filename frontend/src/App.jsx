@@ -447,6 +447,7 @@ function AnalyticsView({ data, onFilter, activeFilter }) {
             <h3>📅 Movies per Year</h3>
             <ChartTypeSelector value={yearChart} onChange={setYearChart} />
           </div>
+          <p className="chart-desc">Tracks the number of movies released each year, revealing industry growth trends and production volume over time.</p>
           <RangeButtons options={YEAR_RANGES} active={yearRange} onChange={setYearRange} />
           <p className="chart-hint">Click a year to filter movies • Showing {filteredYears.length} years</p>
           <UniversalChart data={filteredYears} xKey="year" yKey="count" color="#6366f1" chartType={yearChart} onBarClick={handleYearClick} height={300} />
@@ -457,6 +458,7 @@ function AnalyticsView({ data, onFilter, activeFilter }) {
             <h3>⭐ Rating Distribution</h3>
             <ChartTypeSelector value={ratingChart} onChange={setRatingChart} />
           </div>
+          <p className="chart-desc">Shows how movies are spread across rating brackets, helping identify whether most films cluster around average scores or skew toward high/low quality.</p>
           <RangeButtons options={RATING_RANGES} active={ratingRange} onChange={setRatingRange} />
           <p className="chart-hint">Click a range to filter movies by rating</p>
           <div className="rating-legend">
@@ -472,6 +474,7 @@ function AnalyticsView({ data, onFilter, activeFilter }) {
             <h3>🎭 Top Genres</h3>
             <ChartTypeSelector value={genreChart} onChange={setGenreChart} />
           </div>
+          <p className="chart-desc">Displays the most common movie genres in the dataset, revealing audience preferences and which categories dominate the film industry.</p>
           <RangeButtons options={GENRE_GROUPS} active={genreGroup} onChange={setGenreGroup} />
           <p className="chart-hint">Click a genre to filter movies • Showing {filteredGenres.length} genres</p>
           <UniversalChart data={filteredGenres} xKey="genre" yKey="count" color="#f59e0b" chartType={genreChart} onBarClick={handleGenreClick} height={300} />
@@ -482,6 +485,7 @@ function AnalyticsView({ data, onFilter, activeFilter }) {
             <h3>🌍 Languages</h3>
             <ChartTypeSelector value={langChart} onChange={setLangChart} />
           </div>
+          <p className="chart-desc">Breaks down movies by their original language, highlighting the global diversity of cinema and which languages produce the most content.</p>
           <RangeButtons options={LANG_GROUPS} active={langGroup} onChange={setLangGroup} />
           <p className="chart-hint">Click a language to filter movies • Showing {filteredLangs.length} languages</p>
           <UniversalChart data={filteredLangs} xKey="language" yKey="count" color="#ec4899" chartType={langChart} onBarClick={handleLangClick} formatter={langName} height={300} />
@@ -489,6 +493,7 @@ function AnalyticsView({ data, onFilter, activeFilter }) {
 
         <motion.div className="chart-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
           <h3>🔥 Most Popular</h3>
+          <p className="chart-desc">Ranks the top 10 movies by popularity score — a measure of how much buzz and audience interest a movie has generated based on views, searches, and engagement.</p>
           <div className="top-list">
             {top_popular.map((m, i) => (
               <motion.div key={m.title} className="top-item" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 + i * 0.05 }}>
@@ -503,6 +508,7 @@ function AnalyticsView({ data, onFilter, activeFilter }) {
 
         <motion.div className="chart-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
           <h3>⭐ Top Rated</h3>
+          <p className="chart-desc">Lists the highest-rated movies with at least 100 votes, ensuring quality rankings aren't skewed by films with very few reviews.</p>
           <div className="top-list">
             {top_rated.map((m, i) => (
               <motion.div key={m.title} className="top-item" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.45 + i * 0.05 }}>
@@ -968,6 +974,7 @@ const CSS = `
   .chart-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .chart-card-header h3 { margin-bottom: 0; }
   .chart-hint { font-size: 11px; color: var(--text3); margin-bottom: 12px; font-style: italic; }
+  .chart-desc { font-size: 12.5px; color: var(--text2); margin-bottom: 14px; line-height: 1.5; opacity: 0.85; }
 
   /* RATING LEGEND */
   .rating-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
